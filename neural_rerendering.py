@@ -32,7 +32,7 @@ import time
 import utils
 
 
-def build_model_fn(use_exponential_moving_average=True):
+def build_model_fn(use_exponential_moving_average=True, batch_size = 8):
   """Builds and returns the model function for an estimator.
 
   Args:
@@ -44,6 +44,7 @@ def build_model_fn(use_exponential_moving_average=True):
   """
   arch_type = opts.arch_type
   use_appearance = opts.use_appearance
+  batch_size = batch_size
   def model_fn(features, labels, mode, params):
     """An estimator build_fn."""
     del labels, params
@@ -55,7 +56,7 @@ def build_model_fn(use_exponential_moving_average=True):
       x_app = features['peek_input']
 
       if opts.training_pipeline == 'staged':
-        ops = staged_model.create_computation_graph(x_in, x_gt, x_app=x_app,
+        ops = staged_model.create_computation_graph(x_in, x_gt, x_app=x_app, batch_size = batch_size,
                                                     arch_type=opts.arch_type)
         op_increment_step = tf.assign_add(step, 1)
         train_disc_op = ops['train_disc_op']
@@ -80,7 +81,7 @@ def build_model_fn(use_exponential_moving_average=True):
       raise NotImplementedError('Eval is not implemented.')
     else:  # all below modes are for difference inference tasks.
       # Build network and initialize inference variables.
-      g_func = networks.RenderingModel(arch_type, use_appearance)
+      g_func = networks.RenderingModel(arch_type, use_appearance,1)
       if use_appearance:
         app_func = g_func.get_appearance_encoder()
       if use_exponential_moving_average:

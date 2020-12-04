@@ -21,12 +21,12 @@ from ops import *
 
 class RenderingModel(object):
 
-  def __init__(self, model_name, use_appearance=True):
+  def __init__(self, model_name, use_appearance=True, batch_size=8):
 
     if model_name == 'pggan':
       self._model = ModelPGGAN(use_appearance)
     elif model_name == 'spade':
-      self._model = ModelSpade(use_appearance)
+      self._model = ModelSpade(use_appearance,batch_size)
     else:
       raise ValueError('Model %s not implemented!' % model_name)
 
@@ -44,10 +44,10 @@ class RenderingModel(object):
     return self._model._content_encoder
 
 class ModelSpade(RenderingModel):
-  def __init__(self, use_appearance=True):
+  def __init__(self, use_appearance=True, batch_size=8):
     self._use_apperance = use_appearance
     self._content_encoder = Encoder_Spade(None)
-    self._generator = GeneratorSPADE(appearance_vec_size=opts.app_vector_size)
+    self._generator = GeneratorSPADE(appearance_vec_size=opts.app_vector_size,batch_size=batch_size)
     if use_appearance:
       self._appearance_encoder = DRITAppearanceEncoderConcat(
           'appearance_net', opts.appearance_nc, opts.normalize_drit_Ez)
@@ -254,7 +254,7 @@ class Encoder_Spade(object):
       return mean, var
 
 class GeneratorSPADE(object):
-  def __init__(self,appearance_vec_size=8):
+  def __init__(self,appearance_vec_size=8,batch_size=8):
     print("init")
     channel = 64 * 4 * 4
     self.img_width = 256
@@ -262,10 +262,11 @@ class GeneratorSPADE(object):
     self.sn = False
     self.ch = 64
     self.img_ch =3
+    self.batch_size = batch_size
   def __call__(self, x_in, x_mean, x_var, random_style=False, appearance_embedding=None, encoder_fmaps=None):
     channel = self.ch * 4 * 4
     with tf.variable_scope('generator', reuse=False):
-      batch_size = opts.batch_size
+      batch_size = self.batch_size
 
       print(x_in)
       print(x_in.get_shape().as_list())

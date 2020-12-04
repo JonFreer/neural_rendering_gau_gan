@@ -24,7 +24,7 @@ import tensorflow as tf
 import utils
 
 
-def create_computation_graph(x_in, x_gt, x_app=None, arch_type='pggan',
+def create_computation_graph(x_in, x_gt, x_app=None, arch_type='pggan', batch_size = 8,
                              use_appearance=True):
   """Create the models and the losses.
 
@@ -40,7 +40,7 @@ def create_computation_graph(x_in, x_gt, x_app=None, arch_type='pggan',
   # Build models/networks
   # ---------------------------------------------------------------------------
 
-  rerenderer = networks.RenderingModel(arch_type, use_appearance)
+  rerenderer = networks.RenderingModel(arch_type, use_appearance, batch_size)
   app_enc = rerenderer.get_appearance_encoder()
   discriminator = networks.MultiScaleDiscriminator(
       'd_model', opts.appearance_nc, num_scales=3, nf=64, n_layers=3,
