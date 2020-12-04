@@ -1,0 +1,6 @@
+train_models
+vgg16_weights
+datasets
+imgs
+__pycache__
+deeplabv3_xception_ade20k_train

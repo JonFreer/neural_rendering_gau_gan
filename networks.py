@@ -16,6 +16,7 @@ from options import FLAGS as opts
 import functools
 import layers
 import tensorflow as tf
+from ops import *
 
 
 class RenderingModel(object):
@@ -24,10 +25,13 @@ class RenderingModel(object):
 
     if model_name == 'pggan':
       self._model = ModelPGGAN(use_appearance)
+    elif model_name == 'spade':
+      self._model = ModelSpade(use_appearance)
     else:
       raise ValueError('Model %s not implemented!' % model_name)
 
   def __call__(self, x_in, z_app=None):
+    print(x_in)
     return self._model(x_in, z_app)
 
   def get_appearance_encoder(self):
@@ -38,6 +42,36 @@ class RenderingModel(object):
 
   def get_content_encoder(self):
     return self._model._content_encoder
+
+class ModelSpade(RenderingModel):
+  def __init__(self, use_appearance=True):
+    self._use_apperance = use_appearance
+    self._content_encoder = Encoder_Spade(None)
+    self._generator = GeneratorSPADE(appearance_vec_size=opts.app_vector_size)
+    if use_appearance:
+      self._appearance_encoder = DRITAppearanceEncoderConcat(
+          'appearance_net', opts.appearance_nc, opts.normalize_drit_Ez)
+    else:
+      self._appearance_encoder = None
+
+  def __call__(self, x_in, z_app=None):
+    x_mean, x_var = self._content_encoder(x_in) #should take real image
+    x_mean,x_var = None,None
+    print("MEAN,VAR")
+    print(x_in)
+
+    y = self._generator(x_in,x_mean,x_var,True,z_app)
+    return y
+
+  def get_appearance_encoder(self):
+    return self._appearance_encoder
+
+  def get_generator(self):
+    return self._generator
+
+  def get_content_encoder(self):
+    return self._content_encoder
+
 
 
 # "Progressive Growing of GANs (PGGAN)"-inspired architecture. Implementation is
@@ -181,6 +215,127 @@ class MultiScaleDiscriminator(object):
     return responses
 
 
+class Encoder_Spade(object):
+  def __init__(self, x_init):
+    self.x_init = x_init
+    
+  def __call__(self, x_init):
+    channel = 64
+    self.sn = True
+    self.img_height = 512
+    self.img_width = 512
+    with tf.variable_scope('g_model_enc', reuse=False):
+      x = resize_256(x_init)
+      x = conv_custom(x, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv_custom')
+      x = instance_norm(x, scope='ins_norm')
+
+      for i in range(3):
+          x = lrelu(x, 0.2)
+          x = conv_custom(x, channel * 2, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv_custom' + str(i))
+          x = instance_norm(x, scope='ins_norm_' + str(i))
+
+          channel = channel * 2
+
+          # 128, 256, 512
+
+      x = lrelu(x, 0.2)
+      x = conv_custom(x, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv_3')
+      x = instance_norm(x, scope='ins_norm_3')
+
+      if self.img_height >= 256 or self.img_width >= 256 :
+          x = lrelu(x, 0.2)
+          x = conv_custom(x, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv_4')
+          x = instance_norm(x, scope='ins_norm_4')
+
+      x = lrelu(x, 0.2)
+
+      mean = fully_connected_spade(x, channel // 2, use_bias=True, sn=self.sn, scope='linear_mean')
+      var = fully_connected_spade(x, channel // 2, use_bias=True, sn=self.sn, scope='linear_var')
+      return mean, var
+
+class GeneratorSPADE(object):
+  def __init__(self,appearance_vec_size=8):
+    print("init")
+    channel = 64 * 4 * 4
+    self.img_width = 256
+    self.img_height = 256
+    self.sn = False
+    self.ch = 64
+    self.img_ch =3
+  def __call__(self, x_in, x_mean, x_var, random_style=False, appearance_embedding=None, encoder_fmaps=None):
+    channel = self.ch * 4 * 4
+    with tf.variable_scope('generator', reuse=False):
+      batch_size = opts.batch_size
+
+      print(x_in)
+      print(x_in.get_shape().as_list())
+
+      print("RANDOM STYLE")
+      print(random_style)
+
+
+      if random_style :
+          x = tf.random_normal(shape=[batch_size, self.ch * 4]) #should be batch size
+      else :
+          x = z_sample(x_mean, x_var)
+      print(x)
+      self.num_upsampling_layers = 'normal'
+      if self.num_upsampling_layers == 'normal': #
+          num_up_layers = 5
+      elif self.num_upsampling_layers == 'more':
+          num_up_layers = 6
+      elif self.num_upsampling_layers == 'most':
+          num_up_layers = 7
+
+      z_width = self.img_width // (pow(2, num_up_layers))
+      z_height = self.img_height // (pow(2, num_up_layers))
+
+      """
+      # If num_up_layers = 5 (normal)
+      
+      # 64x64 -> 2
+      # 128x128 -> 4
+      # 256x256 -> 8
+      # 512x512 -> 16
+      
+      """
+
+      x = fully_connected_spade(x, units=z_height * z_width * channel, use_bias=True, sn=self.sn, scope='linear_x')
+      print("RESHAPE")
+      print(x)
+
+      x = tf.reshape(x, [batch_size, z_height, z_width, channel])
+
+
+      x = spade_resblock(x_in, x, channels=channel, use_bias=True, sn=self.sn, scope='spade_resblock_fix_0')
+
+      x = up_sample(x, scale_factor=2)
+      x = spade_resblock(x_in, x, channels=channel, use_bias=True, sn=self.sn, scope='spade_resblock_fix_1')
+
+      if self.num_upsampling_layers == 'more' or self.num_upsampling_layers == 'most':
+          x = up_sample(x, scale_factor=2)
+
+      x = spade_resblock(x_in, x, channels=channel, use_bias=True, sn=self.sn, scope='spade_resblock_fix_2')
+
+      for i in range(4) :
+          x = up_sample(x, scale_factor=2)
+          x = spade_resblock(x_in, x, channels=channel//2, use_bias=True, sn=self.sn, scope='spade_resblock_' + str(i))
+
+          channel = channel // 2
+          # 512 -> 256 -> 128 -> 64
+
+      if self.num_upsampling_layers == 'most':
+          x = up_sample(x, scale_factor=2)
+          x = spade_resblock(x_in, x, channels=channel // 2, use_bias=True, sn=self.sn, scope='spade_resblock_4')
+
+      x = lrelu(x, 0.2)
+      x = conv_custom(x, channels=self.img_ch, kernel=3, stride=1, pad=1, use_bias=True, sn=False, scope='logit')
+      x = tanh(x)
+
+      return x
+
+
+
 class GeneratorPGGAN(object):
   def __init__(self, appearance_vec_size=8, use_scaling=True,
                num_blocks=5, input_nc=7,
@@ -298,6 +453,7 @@ class GeneratorPGGAN(object):
     if opts.use_appearance and opts.inject_z == 'to_encoder':
       x = layers.tile_and_concatenate(x, appearance_embedding,
                                       opts.app_vector_size)
+    print(x)
     y = self.from_rgb[enc_st_idx](x)
 
     enc_responses = []

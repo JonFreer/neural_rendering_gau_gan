@@ -128,7 +128,10 @@ def create_computation_graph(x_in, x_gt, x_app=None, arch_type='pggan',
   with tf.control_dependencies(update_ops):
     with tf.variable_scope('optimizers'):
       d_vars = utils.model_vars('d_model')[0]
-      g_vars_all = utils.model_vars('g_model')[0]
+      if arch_type == 'pggan':
+        g_vars_all = utils.model_vars('g_model')[0]
+      else:
+        g_vars_all = utils.model_vars('generator')[0]
       train_d = [get_optimizer(opts.d_lr, loss_d, d_vars)]
       train_g = [get_optimizer(opts.g_lr, loss_g, g_vars_all)]
 

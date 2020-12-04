@@ -99,7 +99,7 @@ flags.DEFINE_float('w_loss_l2_reg', 0.01, 'Weight for L2 regression on Z.')
 # -----------------------------------------------------------------------------
 
 # Architecture and training setup
-flags.DEFINE_string('arch_type', 'pggan',
+flags.DEFINE_string('arch_type', 'spade',
                     'Architecture type: {pggan, pix2pixhd}.')
 flags.DEFINE_string('training_pipeline', 'staged',
                     'Training type type: {staged, bicycle_gan, drit}.')
