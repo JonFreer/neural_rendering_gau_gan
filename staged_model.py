@@ -22,6 +22,7 @@ import losses
 import networks
 import tensorflow as tf
 import utils
+import numpy as np
 
 
 def create_computation_graph(x_in, x_gt, x_app=None, arch_type='pggan', batch_size = 8,
@@ -132,6 +133,9 @@ def create_computation_graph(x_in, x_gt, x_app=None, arch_type='pggan', batch_si
         g_vars_all = utils.model_vars('g_model')[0]
       else:
         g_vars_all = utils.model_vars('generator')[0]
+        if not opts.random_style:
+          g_vars_all = g_vars_all + utils.model_vars('encoder')[0]
+       
       train_d = [get_optimizer(opts.d_lr, loss_d, d_vars)]
       train_g = [get_optimizer(opts.g_lr, loss_g, g_vars_all)]
 

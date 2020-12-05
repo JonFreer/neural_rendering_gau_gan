@@ -107,7 +107,9 @@ flags.DEFINE_integer('g_nf', 64,
                      'num filters in the first/last layers of U-net.')
 flags.DEFINE_boolean('concatenate_skip_layers', True,
                      'Use concatenation for skip connections.')
-
+## if arch_type == 'spade':
+flags.DEFINE_boolean('random_style', False,
+                     'Use random style (no mean,var)')
 ## if arch_type == 'pggan':
 flags.DEFINE_integer('pggan_n_blocks', 5,
                      'Num blocks for the pggan architecture.')

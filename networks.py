@@ -55,12 +55,15 @@ class ModelSpade(RenderingModel):
       self._appearance_encoder = None
 
   def __call__(self, x_in, z_app=None):
-    x_mean, x_var = self._content_encoder(x_in) #should take real image
-    x_mean,x_var = None,None
+    
+    #x_mean,x_var = None,None
     print("MEAN,VAR")
     print(x_in)
-
-    y = self._generator(x_in,x_mean,x_var,True,z_app)
+    if(opts.random_style):
+      x_mean,x_var = None,None
+    else:
+      x_mean, x_var = self._content_encoder(x_in) #should take real image
+    y = self._generator(x_in,x_mean,x_var,opts.random_style,z_app)
     return y
 
   def get_appearance_encoder(self):
@@ -222,9 +225,9 @@ class Encoder_Spade(object):
   def __call__(self, x_init):
     channel = 64
     self.sn = True
-    self.img_height = 512
-    self.img_width = 512
-    with tf.variable_scope('g_model_enc', reuse=False):
+    self.img_height = 256
+    self.img_width = 256
+    with tf.variable_scope('encoder', reuse=False):
       x = resize_256(x_init)
       x = conv_custom(x, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv_custom')
       x = instance_norm(x, scope='ins_norm')
