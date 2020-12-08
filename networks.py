@@ -276,8 +276,12 @@ class GeneratorSPADE(object):
 
       print("RANDOM STYLE")
       print(random_style)
-
-
+    # Concatenate appearance vector to y
+      if opts.use_appearance and opts.inject_z == 'to_bottleneck':
+        appearance_tensor = tf.tile(appearance_embedding,
+                                    [1, tf.shape(x_in)[1], tf.shape(x_in)[2], 1])
+        x_in = tf.concat([x_in, appearance_tensor], axis=3)
+      
       if random_style :
           x = tf.random_normal(shape=[batch_size, self.ch * 4]) #should be batch size
       else :
