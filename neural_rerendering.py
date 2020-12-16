@@ -235,11 +235,14 @@ def train(dataset_name, dataset_parent_dir, load_pretrained_app_encoder,
   """
   image_dir = osp.join(opts.train_dir, 'images')  # to save validation images.
   tf.gfile.MakeDirs(image_dir)
+  strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
+
   config = tf.estimator.RunConfig(
       save_summary_steps=(1 << 10) // opts.batch_size,
       save_checkpoints_steps=(save_samples_kimg << 10) // opts.batch_size,
       keep_checkpoint_max=5,
-      log_step_count_steps=1 << 30)
+      log_step_count_steps=1 << 30,
+      train_distribute=strategy )
   model_dir = opts.train_dir
   if (opts.use_appearance and load_trained_fixed_app and
       not tf.train.latest_checkpoint(model_dir)):
@@ -318,7 +321,7 @@ def evaluate_image_set(dataset_name, dataset_parent_dir, subset_suffix,
   if output_dir is None:
     output_dir = osp.join(opts.train_dir, 'validation_output_%s' % subset_suffix)
   tf.gfile.MakeDirs(output_dir)
-  model_fn_old = build_model_fn()
+  model_fn_old = build_model_fn(batch_size=batch_size)
   def model_fn_wrapper(features, labels, mode, params):
     del mode
     return model_fn_old(features, labels, 'eval_subset', params)
