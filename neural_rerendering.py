@@ -254,7 +254,7 @@ def train(dataset_name, dataset_parent_dir, load_pretrained_app_encoder,
   if resume_step != 0:
     tf.logging.warning('****** Resuming training at %d!' % resume_step)
 
-  model_fn = build_model_fn()  # model function for TFEstimator.
+  model_fn = build_model_fn(batch_size=opts.batch_size)  # model function for TFEstimator.
 
   hooks = [utils.HookReport(1 << 12, opts.batch_size)]
 
