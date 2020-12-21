@@ -167,4 +167,4 @@ def multi_input_fn_record(
   dataset = dataset.batch(batch_size)
   if shuffle > 0:  # input is not deterministic
     dataset = dataset.prefetch(4)  # Prefetch a few batches.
-  return dataset.make_one_shot_iterator().get_next()
+  return dataset#.make_one_shot_iterator().get_next()

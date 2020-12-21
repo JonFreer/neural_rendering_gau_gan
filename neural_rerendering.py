@@ -241,7 +241,7 @@ def train(dataset_name, dataset_parent_dir, load_pretrained_app_encoder,
       save_summary_steps=(1 << 10) // opts.batch_size,
       save_checkpoints_steps=(save_samples_kimg << 10) // opts.batch_size,
       keep_checkpoint_max=5,
-      log_step_count_steps=1 << 30,
+      log_step_count_steps=1 << 300,
       train_distribute=strategy )
   model_dir = opts.train_dir
   if (opts.use_appearance and load_trained_fixed_app and

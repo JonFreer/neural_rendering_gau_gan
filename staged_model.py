@@ -151,7 +151,8 @@ def create_computation_graph(x_in, x_gt, x_app=None, arch_type='pggan', batch_si
     if opts.use_appearance:
       app_enc_vars = utils.model_vars('appearance_net')[0]
       inference_vars_all += app_enc_vars
-    ema_op = ema.apply(inference_vars_all)
+    with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE):
+        ema_op = ema.apply(inference_vars_all)
 
   print('***************************************************')
   print('len(g_vars_all) = %d' % len(g_vars_all))
