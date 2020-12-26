@@ -318,7 +318,8 @@ def evaluate_image_set(dataset_name, dataset_parent_dir, subset_suffix,
   if output_dir is None:
     output_dir = osp.join(opts.train_dir, 'validation_output_%s' % subset_suffix)
   tf.gfile.MakeDirs(output_dir)
-  model_fn_old = build_model_fn()
+  print("BATCH SIZE",batch_size)
+  model_fn_old = build_model_fn(batch_size=batch_size)
   def model_fn_wrapper(features, labels, mode, params):
     del mode
     return model_fn_old(features, labels, 'eval_subset', params)
